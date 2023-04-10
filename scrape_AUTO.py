@@ -15,6 +15,10 @@ import chromedriver_binary
 from selenium.webdriver import Chrome, ChromeOptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+import warnings
+warnings.resetwarnings()
+warnings.simplefilter('ignore', FutureWarning)
+
 place_dict = {'札幌':'01','函館':'02','福島':'03','新潟':'04','東京':'05','中山':'06','中京':'07','京都':'08','阪神':'09','小倉':'10'}
 R_type_dict = {'芝':'01','ダート':'00','ダ':'00','障':'02','障害':'02'}
 
@@ -127,6 +131,7 @@ def scrape_race_card_table(race_id_list):
         df['R'] = re.findall(r'\w+',race_num) * len(df)
         
         race_name = soup.find('div',attrs={'class':'RaceName'}).text
+        race_name = race_name.replace("―", "")
         df['race_name'] = re.findall(r'\w+',race_name) * len(df)
         
         date = soup.find('dd',attrs={'class':'Active'}).text
@@ -168,7 +173,6 @@ def scrape_race_card_table(race_id_list):
         
         df.index = [race_id]*len(df)
         df['date'] = df.index.str[:4] + '-'+re.findall(r'\w+',date)[0].replace('月','-').replace('日','')
-        #df['date'] = df.index.str[:4] +'/'+ df['date']
         df['date'] = pd.to_datetime(df['date'])
         df['date'] = df['date'].map(lambda x:x.date().strftime('%Y-%m-%d'))
         data = data.append(df)
@@ -184,15 +188,18 @@ from_ = str(now.date())
 to_ = str(one_week_after.date())
 #from_ = str(one_week_before.date())
 
-kaisai_date_list = sorted(list(set(scrape_kaisai_date(from_, to_))))
+kaisai_date_list = sorted(list(set(scrape_kaisai_date(from_, '2023-04-10'))))
 race_id_list = list(set(scrape_race_id_list(kaisai_date_list)))
 print(len(race_id_list))
-scrape_race_card_table(race_id_list).to_pickle('race_card_tables.pickle')
+scrape_race_card_table(race_id_list).sort_index().to_pickle('race_card_tables.pickle')
 
 kaisai_date_list = pd.to_datetime(kaisai_date_list).astype(str)
 with open('kaisai_date_list.txt', 'w') as f:
     for item in kaisai_date_list:
         f.write(str(item) + '\n')
+
+#python scripts/txt_to_dynamo_from_kaisai_date_list.py ./kaisai_date_list.txt
+#python scripts/pickle_to_dynamo_from_race_card_tables.py ./race_card_tables.pickle
 
 
 
